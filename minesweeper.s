@@ -14,9 +14,9 @@
 ########################################################################
 
 # Constant definitions.
-MAX_BOMBS       = 10
-N_ROWS          = 9
-N_COLS          = 9
+MAX_BOMBS       = 1000
+N_ROWS          = 10
+N_COLS          = 10
 N_CELLS         = N_ROWS * N_COLS
 
 # DO NOT CHANGE THESE DEFINITIONS
@@ -124,8 +124,8 @@ scores_score_msg:
 # Implement the following 7 functions,
 # and check these boxes as you finish implementing each function
 #
-#  - [ ] reveal_grid        - subset 0
-#  - [ ] place_bombs        - subset 1
+#  - [.] reveal_grid        - subset 0
+#  - [.] place_bombs        - subset 1
 #  - [ ] mark_cell          - subset 2
 #  - [ ] reveal_cell        - subset 3
 #  - [ ] clear_surroundings - subset 3
@@ -158,6 +158,7 @@ reveal_grid:
         #       -> reveal_grid__col_loop
         #           -> compute =|
         #       -> reveal_grid__col_loop_end
+        #   -> reveal_grid__row_loop_end
         #   -> [epilogue]
 
 reveal_grid__prologue:
@@ -180,7 +181,7 @@ reveal_grid__body:
 
         li      $t0, 0                  # int row = 0;
 reveal_grid__row_loop:
-        bge     $t0, N_ROWS, reveal_grid__epilogue               # while (row < N_ROWS)
+        bge     $t0, N_ROWS, reveal_grid__row_loop_end           # while (row < N_ROWS)
         li      $t1, 0                  # int col = 0;
 reveal_grid__col_loop:
         bge     $t1, N_COLS, reveal_grid__col_loop_end           # while (col < N_ROWS)
@@ -199,6 +200,7 @@ reveal_grid__col_loop_end:
         addi    $t0, $t0, 1             # row++;
         j       reveal_grid__row_loop   #
 
+reveal_grid__row_loop_end:
 reveal_grid__epilogue:
         lw      $ra, 0($sp)
         addiu   $sp, $sp, 4
@@ -215,22 +217,35 @@ place_bombs:
         #   - $a1: int bad_col
         # Returns: void
         #
-        # Frame:    $ra, [...]
-        # Uses:     [...]
-        # Clobbers: [...]
+        # Frame:    $ra, $s0, $s1, $s2, $s3
+        # Uses:     $a0, $a1, $s0, $s1, $s2, $s3
+        # Clobbers: $a0, $a1
         #
         # Locals:
-        #   - [...]
+        #   - `int bad_row`     in $s0
+        #   - `int bad_col`     in $s1
+        #   - `int i`           in $s2
+        #   - `int total_bombs` in $s3
         #
         # Structure:
         #   place_bombs
         #   -> [prologue]
-        #   -> body
+        #   -> place_bombs__body
+        #   -> place_bombs__loop
+        #       -> place_single_bomb
+        #   -> place_bombs__end
         #   -> [epilogue]
 
 place_bombs__prologue:
-        addiu   $sp, $sp, -4
+        addiu   $sp, $sp, -20
         sw      $ra, 0($sp)
+        sw      $s0, 4($sp)
+        sw      $s1, 8($sp)
+        sw      $s2, 12($sp)
+        sw      $s3, 16($sp)
+
+        move    $s0, $a0                # store bad_row
+        move    $s1, $a1                # store bad_col
 
 place_bombs__body:
 
@@ -243,12 +258,26 @@ place_bombs__body:
         # }
 
         # MIPS version:
+        li      $s2, 0                                          # int i = 0;
+        lw      $s3, total_bombs                                # initial total_bombs
+place_bombs__loop:
+        bge     $s2, $s3, place_bombs__end                      # for (i < total_bombs) {
+        
+        move    $a0, $s0
+        move    $a1, $s1
+        jal     place_single_bomb                               #       place_single_bomb(bad_row, bad_col);
 
+        addi    $s2, $s2, 1                                     #       i++;
+        j       place_bombs__loop                               # }
 
-
+place_bombs__end:
 place_bombs__epilogue:
         lw      $ra, 0($sp)
-        addiu   $sp, $sp, 4
+        lw      $s0, 4($sp)
+        lw      $s1, 8($sp)
+        lw      $s2, 12($sp)
+        lw      $s3, 16($sp)
+        addiu   $sp, $sp, 20
 
         jr      $ra
 
