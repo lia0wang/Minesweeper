@@ -7,3 +7,11 @@ At any point, you can perform 2 actions:
   - Revealing a cell - revealing the cell. If it is an empty cell, then all of the surrounding empty cells will also be revealed. Revealing a cell containing a bomb is game over.
 
 Once you have revealed all cells that do not contain a bomb, you win the game.
+
+## Test
+    gcc -o minesweeper minesweeper.c
+    echo -e "20\n2\n0\nname\n-1" > input
+    cat input | ./minesweeper | tee c.out
+    cat grid.s minesweeper.s > game.s
+    cat input | spim -f game.s | tee mips.out
+    diff c.out mips.out
