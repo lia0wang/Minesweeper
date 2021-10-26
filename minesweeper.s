@@ -142,18 +142,22 @@ reveal_grid:
         # Arguments: void
         # Returns: void
         #
-        # Frame:    $ra, [...]
-        # Uses:     [...]
-        # Clobbers: [...]
+        # Frame:    $ra
+        # Uses:     $t0, $t1, $t2, $t3
+        # Clobbers: $t2, $t3
         #
         # Locals:
-        #   - [...]
+        #   - `int row` in $t0
+        #   - `int col` in $t1
         #
         # Structure:
         #   reveal_grid
         #   -> [prologue]
         #   -> reveal_grid__body
-        #       -> reveal_grid
+        #   -> reveal_grid__row_loop
+        #       -> reveal_grid__col_loop
+        #           -> compute =|
+        #       -> reveal_grid__col_loop_end
         #   -> [epilogue]
 
 reveal_grid__prologue:
