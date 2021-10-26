@@ -7,14 +7,17 @@
 # !!! IMPORTANT !!!
 #
 #
-# This program was written by YOUR-NAME-HERE (z5555555)
-# on INSERT-DATE-HERE
-#
+# This program was written by Wang Liao (z5306312)
+# on 26/10/2021
 # Version 1.5 (18-10-21): Team COMP1521 <cs1521@cse.unsw.edu.au>
 #
 ########################################################################
 
 # Constant definitions.
+MAX_BOMBS       = 10
+N_ROWS          = 9
+N_COLS          = 9
+N_CELLS         = N_ROWS * N_COLS
 
 # DO NOT CHANGE THESE DEFINITIONS
 
@@ -149,7 +152,8 @@ reveal_grid:
         # Structure:
         #   reveal_grid
         #   -> [prologue]
-        #   -> body
+        #   -> reveal_grid__body
+        #       -> reveal_grid
         #   -> [epilogue]
 
 reveal_grid__prologue:
@@ -168,15 +172,34 @@ reveal_grid__body:
         #   }
         # }
 
-        # PUT YOUR CODE FOR reveal_grid HERE
+        # MIPS version:
+
+        li      $t0, 0                  # int row = 0;
+reveal_grid__row_loop:
+        bge     $t0, N_ROWS, reveal_grid__epilogue               # while (row < N_ROWS)
+        li      $t1, 0                  # int col = 0;
+reveal_grid__col_loop:
+        bge     $t1, N_COLS, reveal_grid__col_loop_end           # while (col < N_ROWS)
+        
+        mul     $t2, $t0, N_COLS        #
+        add     $t2, $t2, $t1           #
+        lb      $t3, grid($t2)          # $t3 = grid[row][col]
+
+        ori     $t3, $t3, IS_RVLD_MASK  #
+        sb      $t3, grid($t2)          # grid[row][col] |= IS_RVLD_MASK;
+
+        addi    $t1, $t1, 1             # col++;
+        j       reveal_grid__col_loop
+
+reveal_grid__col_loop_end:
+        addi    $t0, $t0, 1             # row++;
+        j       reveal_grid__row_loop   #
 
 reveal_grid__epilogue:
         lw      $ra, 0($sp)
         addiu   $sp, $sp, 4
 
         jr      $ra
-
-
 
 ########################################################################
 # .TEXT <place_bombs>
@@ -215,7 +238,8 @@ place_bombs__body:
         #   }
         # }
 
-        # PUT YOUR CODE FOR place_bombs HERE
+        # MIPS version:
+
 
 
 place_bombs__epilogue:
