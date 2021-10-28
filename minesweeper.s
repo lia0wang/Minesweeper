@@ -351,9 +351,9 @@ is_revealed__if_cell:
         andi    $t0, $s1, IS_RVLD_MASK          # if (grid[row][col] & IS_RVLD_MASK) {
         beqz    $t0, is_marked__if_cell         #
 is_debug_mode__if_cells:
-        la      $t1, debug_mode                 #
-        lw      $t1, ($t1)                      #
-        beqz    $t0, print_debug_error          #       if (debug_mode) {
+        la      $t0, debug_mode                 #
+        lw      $t1, ($t0)                      #
+        beqz    $t1, print_debug_error          #       if (debug_mode) {
         j       mark_cell__epilogue             #               return
 
 print_debug_error:
@@ -375,7 +375,7 @@ is_marked__if_cell:
         lw      $t3, ($t2)                      #       $t3 = bomb_count
         addi    $t3, $t3, 1                     #
         sw      $t3, ($t2)                      #       bomb_count++;
-        j mark_cell__epilogue                   #
+        j       mark_cell__epilogue             #
 
 is_not_marked__if_cell:                         # else 
         li     $t1, IS_MRKD_MASK                #       $t1 = IS_MRKD_MASK
@@ -388,7 +388,7 @@ is_not_marked__if_cell:                         # else
         lw      $t3, ($t2)                      #       $t3 = bomb_count
         addi    $t3, $t3, -1                    #
         sw      $t3, ($t2)                      #       bomb_count--;
-        j mark_cell__epilogue                   #        
+        j       mark_cell__epilogue             #        
 
 mark_cell__epilogue:
         lw      $ra, 0($sp)
@@ -410,23 +410,41 @@ reveal_cell:
         #   $a1: int col
         # Returns: void
         #
-        # Frame:    $ra, [...]
-        # Uses:     [...]
-        # Clobbers: [...]
+        # Frame:    $ra, $s0, $s1, $s2, $s3
+        # Uses:     $a0, $a1, $s0, $s1, $s2, $s3
+        # Clobbers: $a0, $a1
         #
         # Locals:
-        #   - [...]
+        #   - `int &grid[row][col]`     in $s0
+        #   - `int grid[row][col]`      in $s1
+        #   - `int row`                 in $s2
+        #   - `int col`                 in $s3
         #
         # Structure:
         #   reveal_cell
         #   -> [prologue]
-        #   -> body
+        #   -> reveal_cell__body
+        #   -> is_marked_if_cell
+        #       -> is_debug_mode__if_cells0
+        #       -> print_debug_error0
+        #   -> is_revealed_if_cell
+        #       -> is_debug_mode__if_cells1
+        #       -> print_debug_error1
+        #   -> is_bomb__if_cell
+        #   -> clear_cell_surroundings ELSE  -> not_clear_surroundings
+        #                                        -> cells_left_z
         #   -> [epilogue]
 
 reveal_cell__prologue:
-        addiu   $sp, $sp, -4
+        addiu   $sp, $sp, -20
         sw      $ra, 0($sp)
+        sw      $s0, 4($sp)
+        sw      $s1, 8($sp)
+        sw      $s2, 12($sp)
+        sw      $s3, 16($sp)
 
+        move    $s2, $a0                               # store row
+        move    $s3, $a1                               # store col
 reveal_cell__body:
 
         # TODO: convert this C function to MIPS
@@ -467,12 +485,86 @@ reveal_cell__body:
         #   }
         # }
 
-        # PUT YOUR CODE FOR reveal_cell HERE
+        # MIPS version:
+        mul     $t0, $a0, N_COLS                        #
+        add     $t0, $t0, $a1                           #
+        move    $s0, $t0                                #
+        lb      $s1, grid($s0)                          # grid[row][col]
 
+is_marked_if_cell:
+        andi    $t0, $s1, IS_MRKD_MASK                  # if (grid[row][col] & IS_MRKD_MASK) {
+        beqz    $t0, is_revealed_if_cell                #
+is_debug_mode__if_cells0:
+        la      $t0, debug_mode                         #
+        lw      $t1, ($t0)                              #
+        beqz    $t1, print_debug_error0                 #       if (debug_mode) {
+        j       reveal_cell__epilogue                   #               return    
+
+print_debug_error0:
+        la      $a0, reveal_error                       #
+        li      $v0, 4                                  #
+        syscall                                         #       printf("Cannot reveal a marked cell.\n");
+        j       reveal_cell__epilogue                   #       return
+
+is_revealed_if_cell:
+        andi    $t0, $s1, IS_RVLD_MASK                  # if (grid[row][col] & IS_RVLD_MASK) {
+        beqz    $t0, is_bomb__if_cell                   #
+is_debug_mode__if_cells1:
+        la      $t0, debug_mode                         #
+        lw      $t1, ($t0)                              #
+        beqz    $t1, print_debug_error1                 #       if (debug_mode) {
+        j       reveal_cell__epilogue                   #               return
+
+print_debug_error1:
+        la      $a0, already_revealed                   #
+        li      $v0, 4                                  #
+        syscall                                         #       printf("Cell is already revealed.\n");
+        j       reveal_cell__epilogue                   #       return
+
+is_bomb__if_cell:
+        andi    $t0, $s1, IS_BOMB_MASK                  # if (grid[row][col] & IS_BOMB_MASK) {
+        beqz    $t0, clear_cell_surroundings            #
+
+        li      $t0, LOSE                               #
+        sw      $t0, game_state                         #       game_state = LOSE;
+
+clear_cell_surroundings:
+        andi    $t0, $s1, VALUE_MASK                    # if (grid[row][col] & VALUE_MASK == 0) {
+        bnez    $t0, not_clear_surroundings             #
+
+        move    $a0, $s2
+        move    $a1, $s3
+        jal     clear_surroundings                      #       clear_surroundings(row, col);
+
+not_clear_surroundings:                                 # else 
+        li      $t1, IS_RVLD_MASK                       #       $t1 = IS_RVLD_MASK
+        move    $t0, $s1                                #       $t0 = grid[row][col]
+        or      $t0, $t0, $t1                           #       grid[row][col] |= IS_RVLD_MASK
+        sb      $t0, grid($s0)                          #
+        
+        lw      $t0, game_state                         #
+        beq     $t0, LOSE, cells_left_z                 # if (game_state != LOSE) {
+
+        la      $t2, cells_left                         #
+        lw      $t3, ($t2)                              #       $t3 = cells_left
+        addi    $t3, $t3, -1                            #
+        sw      $t3, ($t2)                              #       cells_left--;
+
+cells_left_z:
+        la      $t0, cells_left                         #
+        lw      $t1, ($t0)                              # $t1 = cells_left
+        bnez    $t1, reveal_cell__epilogue              # if (cells_left == 0) {
+
+        li      $t0, WIN                                #
+        sw      $t0, game_state                         #       game_state = WIN;
 
 reveal_cell__epilogue:
         lw      $ra, 0($sp)
-        addiu   $sp, $sp, 4
+        lw      $s0, 4($sp)
+        lw      $s1, 8($sp)
+        lw      $s2, 12($sp)
+        lw      $s3, 16($sp)
+        addiu   $sp, $sp, 20
 
         jr      $ra
 
