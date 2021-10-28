@@ -14,6 +14,10 @@
 ########################################################################
 
 # Constant definitions.
+MAX_BOMBS       = 1000
+N_ROWS          = 10
+N_COLS          = 10
+N_CELLS         = N_ROWS * N_COLS
 
 # DO NOT CHANGE THESE DEFINITIONS
 
@@ -748,7 +752,7 @@ clear_surroundings__epilogue:
 update_highscore:
         # Arguments:
         #   $a0: int score
-        # Returns: void
+        # Returns: int
         #
         # Frame:    $ra, [...]
         # Uses:     [...]
@@ -788,7 +792,35 @@ update_highscore__body:
         #   return FALSE;
         # }
 
-        # PUT YOUR CODE FOR update_highscore HERE
+        # MIPS version:
+
+check_higher_score_exist:
+        lw      $t0, high_score                                 # $t0 = high_score.score
+        bge     $t0, $a0, check_higher_score_exist_false        # if (high_score.score < score)
+        sw      $a0, scores($t0)                                #       high_score.score = score
+        
+        li      $t1, 0                                          #       int i = 0
+copy_over_string_while:
+        lb      $t2, user_name($t1)                             #       $t2 = user_name[$t1]
+        beqz    $t2, copy_over_string_endwhile                  #       while (user_name[i] != '\0')
+
+        add     $t3, $t0, 4                                     #               high_score.score -> high_score.name
+        add     $t3, $t3, $t1                                   #               high_score.name -> high_score.name[i]
+        sb      $t2, scores($t3)                                #               high_score.name[i] = user_name[i]
+
+        addi    $t1, $t1, 1                                     #               ++i
+        j       copy_over_string_while                          # jump back to the top
+
+copy_over_string_endwhile:
+        add     $t3, $t0, 4                                     #       high_score.score -> high_score.name
+        add     $t3, $t3, $t1                                   #       high_score.name -> high_score.name[i]
+        sb      $zero, scores($t3)                              #       high_score.name[i] = '\0'
+
+        li      $v0, TRUE                                       #       return TRUE
+        j       update_highscore__epilogue
+
+check_higher_score_exist_false:
+        li      $v0, FALSE                                      # return FALSE
 
 update_highscore__epilogue:
         lw      $ra, 0($sp)
@@ -840,8 +872,59 @@ print_scores__body:
         #   printf("------------------------------\n");
         # }
 
-        # PUT YOUR CODE FOR print_scores HERE
+        # MIPS version:
 
+print_scores_msg:
+        la      $a0, scores_msg                                #
+        li      $v0, 4                                         #
+        syscall                                                # printf("-------------SCORES-----------\n\n");
+        
+        li      $t0, 0                                         # int i = 0
+max_scores_for_loop:
+        bge     $t0, MAX_SCORES, max_scores_for_loop_end       # for (i < MAX_SCORES)
+        
+        mul     $t1, $t0, USER_SCORE_SIZE                      #        $t1 = score[i] 
+        
+        lw      $t2, scores($t1)                               #        struct UserScore curr = scores[i];
+        beq     $t2, -1, max_scores_for_loop_end       #        if (curr.score == -1)
+                                                               #        break
+
+        la      $a0, scores_line_msg                           #
+        li      $v0, 4                                         #
+        syscall                                                #        printf("------------------------------\n");
+
+        la      $a0, scores_username_msg                       #
+        li      $v0, 4                                         #
+        syscall                                                #        printf("* USERNAME:\t");
+
+        la      $a0, scores($t1)                               #
+        add     $a0, $a0, 4                                    #
+        li      $v0, 4                                         #
+        syscall                                                #        printf("%s", curr.name);
+
+        li      $a0, '\n'                                      #
+        li      $v0, 11                                        #
+        syscall                                                #        printf("\n");
+        
+        la      $a0, scores_score_msg                          #
+        li      $v0, 4                                         #
+        syscall                                                #        printf("* SCORE:\t");
+
+        lw      $a0, scores($t1)                               #
+        li      $v0, 1                                         #
+        syscall                                                #        printf("%d", curr.score);
+
+        li      $a0, '\n'                                      #
+        li      $v0, 11                                        #
+        syscall                                                #        printf("\n");
+
+        addi    $t0, $t0, 1                                    #        i++;
+        j       max_scores_for_loop
+
+max_scores_for_loop_end:
+        la      $a0, scores_line_msg                           #
+        li      $v0, 4                                         #
+        syscall                                                #  printf("------------------------------\n");
 
 print_scores__epilogue:
         lw      $ra, 0($sp)
