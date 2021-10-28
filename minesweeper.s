@@ -14,10 +14,6 @@
 ########################################################################
 
 # Constant definitions.
-MAX_BOMBS       = 1000
-N_ROWS          = 10
-N_COLS          = 10
-N_CELLS         = N_ROWS * N_COLS
 
 # DO NOT CHANGE THESE DEFINITIONS
 
@@ -127,8 +123,8 @@ scores_score_msg:
 #  - [.] reveal_grid        - subset 0
 #  - [.] place_bombs        - subset 1
 #  - [.] mark_cell          - subset 2
-#  - [ ] reveal_cell        - subset 3
-#  - [ ] clear_surroundings - subset 3
+#  - [.] reveal_cell        - subset 3
+#  - [.] clear_surroundings - subset 3
 #  - [ ] update_highscore   - subset 4
 #  - [ ] print_scores       - subset 4
 #
@@ -580,23 +576,38 @@ clear_surroundings:
         #   $a1: int col
         # Returns: void
         #
-        # Frame:    $ra, [...]
-        # Uses:     [...]
-        # Clobbers: [...]
+        # Frame:    $ra, $s0, $s1, $s2, $s3
+        # Uses:     $a0, $a1, $s0, $s1, $s2, $s3
+        # Clobbers: $a0, $a1
         #
         # Locals:
-        #   - [...]
+        #   - `int &grid[row][col]`     in $s0
+        #   - `int grid[row][col]`      in $s1
+        #   - `int row`                 in $s2
+        #   - `int col`                 in $s3
         #
         # Structure:
         #   clear_surroundings
         #   -> [prologue]
-        #   -> body
+        #   -> clear_surroundings__body
+        #   -> check_valid_row_and_col
+        #   -> if_is_revealed
+        #   -> reveal_the_cell
+        #   -> unmark_the_cell
+        #   -> stop_reveal__if_reached
+        #   -> recurse_surrounding_cells
         #   -> [epilogue]
 
 clear_surroundings__prologue:
-        addiu   $sp, $sp, -4
+        addiu   $sp, $sp, -20
         sw      $ra, 0($sp)
+        sw      $s0, 4($sp)
+        sw      $s1, 8($sp)
+        sw      $s2, 12($sp)
+        sw      $s3, 16($sp)
 
+        move    $s2, $a0                                        # store row
+        move    $s3, $a1                                        # store col
 clear_surroundings__body:
 
         # TODO: convert this C function to MIPS
@@ -631,11 +642,101 @@ clear_surroundings__body:
         #   clear_surroundings(row + 1, col + 1);
         # }
 
-        # PUT YOUR CODE FOR clear_surroundings HERE
+        # MIPS version:
+
+check_valid_row_and_col:
+        blt     $a0, 0, clear_surroundings__epilogue            # if (row < 0)
+        li      $t0, N_ROWS                                     #
+        bge     $a0, $t0, clear_surroundings__epilogue          #       || row >= N_ROWS
+                                                                #
+        blt     $a1, 0, clear_surroundings__epilogue            #       || col < 0
+        li      $t1, N_COLS                                     #
+        bge     $a1, $t1, clear_surroundings__epilogue          #       || col >= N_COLS)
+                                                                #       return;
+
+        mul     $t0, $a0, N_COLS                                #
+        add     $t0, $t0, $a1                                   #
+        move    $s0, $t0                                        #
+        lb      $s1, grid($s0)                                  # grid[row][col]
+if_is_revealed:   
+        andi    $t0, $s1, IS_RVLD_MASK                          # if (grid[row][col] & IS_RVLD_MASK) {
+        bnez    $t0, clear_surroundings__epilogue               #       return
+
+reveal_the_cell:
+        li      $t1, IS_RVLD_MASK                               # $t1 = IS_RVLD_MASK
+        move    $t0, $s1                                        # $t0 = grid[row][col]
+        or      $s1, $t0, $t1                                   # grid[row][col] |= IS_RVLD_MASK
+        sb      $s1, grid($s0)                                  #
+
+        la      $t0, cells_left                                 #
+        lw      $t1, ($t0)                                      # $t3 = cells_left
+        addi    $t1, $t1, -1                                    #
+        sw      $t1, ($t0)                                      # cells_left--;
+
+unmark_the_cell:
+        li      $t1, IS_MRKD_MASK                               # $t1 = IS_MRKD_MASK
+        nor     $t1, $t1, $t1                                   # $t1 = ~IS_MRKD_MASK
+        move    $t0, $s1                                        # $t0 = grid[row][col]
+        and     $t0, $s1, $t1                                   # grid[row][col] &= ~IS_MRKD_MASK
+        sb      $s1, grid($s0)                                  #
+
+stop_reveal__if_reached:
+        andi    $t0, $s1, VALUE_MASK                            # if (grid[row][col] & VALUE_MASK) {
+        bnez    $t0, clear_surroundings__epilogue               #       return
+
+recurse_surrounding_cells:
+        addi    $t0, $s2, -1                                    
+        move    $a0, $t0                                        # row - 1
+        move    $a1, $s3                                        # col
+        jal     clear_surroundings                              # clear_surroundings(row - 1, col);
+
+        addi    $t0, $s2, -1                                    
+        move    $a0, $t0                                        # row - 1
+        addi    $t1, $s3, -1                                    
+        move    $a1, $t1                                        # col - 1
+        jal     clear_surroundings                              # clear_surroundings(row - 1, col - 1);
+
+        addi    $t0, $s2, -1                                    
+        move    $a0, $t0                                        # row - 1
+        addi    $t1, $s3, 1                                    
+        move    $a1, $t1                                        # col + 1
+        jal     clear_surroundings                              # clear_surroundings(row - 1, col + 1);
+ 
+        move    $a0, $s2                                        # row 
+        addi    $t0, $s3, -1                                    
+        move    $a1, $t0                                        # col - 1
+        jal     clear_surroundings                              # clear_surroundings(row, col - 1);
+
+        move    $a0, $s2                                        # row 
+        addi    $t0, $s3, 1                                    
+        move    $a1, $t0                                        # col + 1
+        jal     clear_surroundings                              # clear_surroundings(row, col + 1);
+
+        addi    $t0, $s2, 1                                    
+        move    $a0, $t0                                        # row + 1
+        addi    $t1, $s3, -1                                    
+        move    $a1, $t1                                        # col - 1
+        jal     clear_surroundings                              # clear_surroundings(row + 1, col - 1);
+
+        addi    $t0, $s2, 1                                    
+        move    $a0, $t0                                        # row + 1
+        move    $a1, $s3                                        # col
+        jal     clear_surroundings                              # clear_surroundings(row + 1, col);
+
+        addi    $t0, $s2, 1                                    
+        move    $a0, $t0                                        # row + 1
+        addi    $t1, $s3, 1                                    
+        move    $a1, $t1                                        # col + 1
+        jal     clear_surroundings                              # clear_surroundings(row + 1, col + 1);
 
 clear_surroundings__epilogue:
         lw      $ra, 0($sp)
-        addiu   $sp, $sp, 4
+        lw      $s0, 4($sp)
+        lw      $s1, 8($sp)
+        lw      $s2, 12($sp)
+        lw      $s3, 16($sp)
+        addiu   $sp, $sp, 20
+
         jr      $ra
 
 
