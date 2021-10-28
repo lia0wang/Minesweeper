@@ -175,26 +175,26 @@ reveal_grid__body:
 
         # MIPS version:
 
-        li      $t0, 0                  # int row = 0;
+        li      $t0, 0                                           # int row = 0;
 reveal_grid__row_loop:
         bge     $t0, N_ROWS, reveal_grid__row_loop_end           # while (row < N_ROWS)
         li      $t1, 0                  # int col = 0;
 reveal_grid__col_loop:
         bge     $t1, N_COLS, reveal_grid__col_loop_end           # while (col < N_ROWS)
         
-        mul     $t2, $t0, N_COLS        #
-        add     $t2, $t2, $t1           #
-        lb      $t3, grid($t2)          # $t3 = grid[row][col]
+        mul     $t2, $t0, N_COLS                                 #
+        add     $t2, $t2, $t1                                    #
+        lb      $t3, grid($t2)                                   # $t3 = grid[row][col]
 
-        ori     $t3, $t3, IS_RVLD_MASK  #
-        sb      $t3, grid($t2)          # grid[row][col] |= IS_RVLD_MASK;
+        ori     $t3, $t3, IS_RVLD_MASK                           #
+        sb      $t3, grid($t2)                                   # grid[row][col] |= IS_RVLD_MASK;
 
-        addi    $t1, $t1, 1             # col++;
+        addi    $t1, $t1, 1                                      # col++;
         j       reveal_grid__col_loop
 
 reveal_grid__col_loop_end:
-        addi    $t0, $t0, 1             # row++;
-        j       reveal_grid__row_loop   #
+        addi    $t0, $t0, 1                                      # row++;
+        j       reveal_grid__row_loop                            #
 
 reveal_grid__row_loop_end:
 reveal_grid__epilogue:
@@ -240,8 +240,8 @@ place_bombs__prologue:
         sw      $s2, 12($sp)
         sw      $s3, 16($sp)
 
-        move    $s0, $a0                # store bad_row
-        move    $s1, $a1                # store bad_col
+        move    $s0, $a0                                         # store bad_row
+        move    $s1, $a1                                         # store bad_col
 
 place_bombs__body:
 
@@ -439,8 +439,8 @@ reveal_cell__prologue:
         sw      $s2, 12($sp)
         sw      $s3, 16($sp)
 
-        move    $s2, $a0                               # store row
-        move    $s3, $a1                               # store col
+        move    $s2, $a0                                 # store row
+        move    $s3, $a1                                 # store col
 reveal_cell__body:
 
         # TODO: convert this C function to MIPS
