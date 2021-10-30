@@ -8,7 +8,7 @@ At any point, you can perform 2 actions:
 
 Once you have revealed all cells that do not contain a bomb, you win the game.
 
-Enter spim -f minesweeper.s to play the MIPS version.
+spim -f minesweeper.s
 
 ## Testing Example
     gcc -o minesweeper minesweeper.c
