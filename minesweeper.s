@@ -14,10 +14,10 @@
 ########################################################################
 
 # Constant definitions.
-MAX_BOMBS       = 1000
-N_ROWS          = 10
-N_COLS          = 10
-N_CELLS         = N_ROWS * N_COLS
+# MAX_BOMBS       = 1000
+# N_ROWS          = 10
+# N_COLS          = 10
+# N_CELLS         = N_ROWS * N_COLS
 
 # DO NOT CHANGE THESE DEFINITIONS
 
@@ -129,8 +129,8 @@ scores_score_msg:
 #  - [.] mark_cell          - subset 2
 #  - [.] reveal_cell        - subset 3
 #  - [.] clear_surroundings - subset 3
-#  - [ ] update_highscore   - subset 4
-#  - [ ] print_scores       - subset 4
+#  - [.] update_highscore   - subset 4
+#  - [.] print_scores       - subset 4
 #
 ########################################################################
 
@@ -156,7 +156,6 @@ reveal_grid:
         #   -> reveal_grid__body
         #   -> reveal_grid__row_loop
         #       -> reveal_grid__col_loop
-        #           -> compute =|
         #       -> reveal_grid__col_loop_end
         #   -> reveal_grid__row_loop_end
         #   -> [epilogue]
@@ -182,18 +181,19 @@ reveal_grid__body:
         li      $t0, 0                                           # int row = 0;
 reveal_grid__row_loop:
         bge     $t0, N_ROWS, reveal_grid__row_loop_end           # while (row < N_ROWS)
-        li      $t1, 0                  # int col = 0;
+
+        li      $t1, 0                                           #       int col = 0;
 reveal_grid__col_loop:
-        bge     $t1, N_COLS, reveal_grid__col_loop_end           # while (col < N_ROWS)
+        bge     $t1, N_COLS, reveal_grid__col_loop_end           #      while (col < N_ROWS)
         
         mul     $t2, $t0, N_COLS                                 #
         add     $t2, $t2, $t1                                    #
-        lb      $t3, grid($t2)                                   # $t3 = grid[row][col]
+        lb      $t3, grid($t2)                                   #      $t3 = grid[row][col]
 
         ori     $t3, $t3, IS_RVLD_MASK                           #
-        sb      $t3, grid($t2)                                   # grid[row][col] |= IS_RVLD_MASK;
+        sb      $t3, grid($t2)                                   #      grid[row][col] |= IS_RVLD_MASK;
 
-        addi    $t1, $t1, 1                                      # col++;
+        addi    $t1, $t1, 1                                      #      col++;
         j       reveal_grid__col_loop
 
 reveal_grid__col_loop_end:
@@ -294,12 +294,13 @@ mark_cell:
         # Returns: void
         #
         # Frame:    $ra, $s0, $s1
-        # Uses:     $a0, $a1, $s0, $s1
-        # Clobbers: $a0, $a1
+        # Uses:     $a0, $a1, $t0, $t1, $t2, $s0, $s1, $t3
+        # Clobbers: $a0, $a1, $t0, $t1, $t2
         #
         # Locals:
         #   - `int &grid[row][col]`     in $s0
         #   - `int grid[row][col]`      in $s1
+        #   - `int bomb_count`          in $t3
         #
         # Structure:
         #   mark_cell
@@ -346,7 +347,6 @@ mark_cell__body:
         add     $t0, $t0, $a1                   #
         move    $s0, $t0                        #
         lb      $s1, grid($s0)                  # grid[row][col]
-        
 is_revealed__if_cell:   
         andi    $t0, $s1, IS_RVLD_MASK          # if (grid[row][col] & IS_RVLD_MASK) {
         beqz    $t0, is_marked__if_cell         #
@@ -354,17 +354,20 @@ is_debug_mode__if_cells:
         la      $t0, debug_mode                 #
         lw      $t1, ($t0)                      #
         beqz    $t1, print_debug_error          #       if (debug_mode) {
+
         j       mark_cell__epilogue             #               return
 
 print_debug_error:
         la      $a0, mark_error                 #
         li      $v0, 4                          #
         syscall                                 #       printf("Cannot mark a revealed cell.\n");
+
         j       mark_cell__epilogue             #       return
 
 is_marked__if_cell:
         andi    $t0, $s1, IS_MRKD_MASK          # if (grid[row][col] & IS_MRKD_MASK) {
         beqz    $t0, is_not_marked__if_cell     #
+
         li      $t1, IS_MRKD_MASK               #       $t1 = IS_MRKD_MASK
         nor     $t1, $t1, $t1                   #       $t1 = ~IS_MRKD_MASK
         move    $t0, $s1                        #       $t0 = grid[row][col]
@@ -375,6 +378,7 @@ is_marked__if_cell:
         lw      $t3, ($t2)                      #       $t3 = bomb_count
         addi    $t3, $t3, 1                     #
         sw      $t3, ($t2)                      #       bomb_count++;
+
         j       mark_cell__epilogue             #
 
 is_not_marked__if_cell:                         # else 
@@ -388,7 +392,8 @@ is_not_marked__if_cell:                         # else
         lw      $t3, ($t2)                      #       $t3 = bomb_count
         addi    $t3, $t3, -1                    #
         sw      $t3, ($t2)                      #       bomb_count--;
-        j       mark_cell__epilogue             #        
+
+        j       mark_cell__epilogue             #
 
 mark_cell__epilogue:
         lw      $ra, 0($sp)
@@ -411,14 +416,15 @@ reveal_cell:
         # Returns: void
         #
         # Frame:    $ra, $s0, $s1, $s2, $s3
-        # Uses:     $a0, $a1, $s0, $s1, $s2, $s3
-        # Clobbers: $a0, $a1
+        # Uses:     $a0, $a1, $t0, $t1, $t2, $s0, $s1, $s2, $s3, $t3
+        # Clobbers: $a0, $a1, $t0, $t1, $t2
         #
         # Locals:
         #   - `int &grid[row][col]`     in $s0
         #   - `int grid[row][col]`      in $s1
         #   - `int row`                 in $s2
         #   - `int col`                 in $s3
+        #   - `int bomb_count`          in $t3
         #
         # Structure:
         #   reveal_cell
@@ -445,6 +451,7 @@ reveal_cell__prologue:
 
         move    $s2, $a0                                 # store row
         move    $s3, $a1                                 # store col
+
 reveal_cell__body:
 
         # TODO: convert this C function to MIPS
@@ -490,7 +497,6 @@ reveal_cell__body:
         add     $t0, $t0, $a1                           #
         move    $s0, $t0                                #
         lb      $s1, grid($s0)                          # grid[row][col]
-
 is_marked_if_cell:
         andi    $t0, $s1, IS_MRKD_MASK                  # if (grid[row][col] & IS_MRKD_MASK) {
         beqz    $t0, is_revealed_if_cell                #
@@ -498,12 +504,14 @@ is_debug_mode__if_cells0:
         la      $t0, debug_mode                         #
         lw      $t1, ($t0)                              #
         beqz    $t1, print_debug_error0                 #       if (debug_mode) {
+
         j       reveal_cell__epilogue                   #               return    
 
 print_debug_error0:
         la      $a0, reveal_error                       #
         li      $v0, 4                                  #
         syscall                                         #       printf("Cannot reveal a marked cell.\n");
+
         j       reveal_cell__epilogue                   #       return
 
 is_revealed_if_cell:
@@ -513,12 +521,14 @@ is_debug_mode__if_cells1:
         la      $t0, debug_mode                         #
         lw      $t1, ($t0)                              #
         beqz    $t1, print_debug_error1                 #       if (debug_mode) {
+
         j       reveal_cell__epilogue                   #               return
 
 print_debug_error1:
         la      $a0, already_revealed                   #
         li      $v0, 4                                  #
         syscall                                         #       printf("Cell is already revealed.\n");
+
         j       reveal_cell__epilogue                   #       return
 
 is_bomb__if_cell:
@@ -535,6 +545,8 @@ clear_cell_surroundings:
         move    $a0, $s2
         move    $a1, $s3
         jal     clear_surroundings                      #       clear_surroundings(row, col);
+
+        j       cells_left_z
 
 not_clear_surroundings:                                 # else 
         li      $t1, IS_RVLD_MASK                       #       $t1 = IS_RVLD_MASK
@@ -581,8 +593,8 @@ clear_surroundings:
         # Returns: void
         #
         # Frame:    $ra, $s0, $s1, $s2, $s3
-        # Uses:     $a0, $a1, $s0, $s1, $s2, $s3
-        # Clobbers: $a0, $a1
+        # Uses:     $a0, $a1, $t0, $t1, $s0, $s1, $s2, $s3
+        # Clobbers: $a0, $a1, $t0, $t1
         #
         # Locals:
         #   - `int &grid[row][col]`     in $s0
@@ -650,14 +662,15 @@ clear_surroundings__body:
 
 check_valid_row_and_col:
         blt     $a0, 0, clear_surroundings__epilogue            # if (row < 0)
+
         li      $t0, N_ROWS                                     #
         bge     $a0, $t0, clear_surroundings__epilogue          #       || row >= N_ROWS
                                                                 #
         blt     $a1, 0, clear_surroundings__epilogue            #       || col < 0
+
         li      $t1, N_COLS                                     #
         bge     $a1, $t1, clear_surroundings__epilogue          #       || col >= N_COLS)
                                                                 #       return;
-
         mul     $t0, $a0, N_COLS                                #
         add     $t0, $t0, $a1                                   #
         move    $s0, $t0                                        #
@@ -665,10 +678,10 @@ check_valid_row_and_col:
 if_is_revealed:   
         andi    $t0, $s1, IS_RVLD_MASK                          # if (grid[row][col] & IS_RVLD_MASK) {
         bnez    $t0, clear_surroundings__epilogue               #       return
-
 reveal_the_cell:
         li      $t1, IS_RVLD_MASK                               # $t1 = IS_RVLD_MASK
         move    $t0, $s1                                        # $t0 = grid[row][col]
+
         or      $s1, $t0, $t1                                   # grid[row][col] |= IS_RVLD_MASK
         sb      $s1, grid($s0)                                  #
 
@@ -680,6 +693,7 @@ reveal_the_cell:
 unmark_the_cell:
         li      $t1, IS_MRKD_MASK                               # $t1 = IS_MRKD_MASK
         nor     $t1, $t1, $t1                                   # $t1 = ~IS_MRKD_MASK
+
         move    $t0, $s1                                        # $t0 = grid[row][col]
         and     $t0, $s1, $t1                                   # grid[row][col] &= ~IS_MRKD_MASK
         sb      $s1, grid($s0)                                  #
@@ -687,7 +701,6 @@ unmark_the_cell:
 stop_reveal__if_reached:
         andi    $t0, $s1, VALUE_MASK                            # if (grid[row][col] & VALUE_MASK) {
         bnez    $t0, clear_surroundings__epilogue               #       return
-
 recurse_surrounding_cells:
         addi    $t0, $s2, -1                                    
         move    $a0, $t0                                        # row - 1
@@ -754,17 +767,23 @@ update_highscore:
         #   $a0: int score
         # Returns: int
         #
-        # Frame:    $ra, [...]
-        # Uses:     [...]
-        # Clobbers: [...]
+        # Frame:    $ra
+        # Uses:     $a0, $v0, $t0, $t1, $t2, $t3
+        # Clobbers: $a0, $v0, $t3
         #
         # Locals:
-        #   - [...]
+        #   - index within `high_socre` in $t0
+        #   - `int i`                   in $t1
+        #   - index within `user_name`  in $t2
         #
         # Structure:
         #   update_highscore
         #   -> [prologue]
-        #   -> body
+        #   -> update_highscore__body
+        #   -> check_higher_score_exist
+        #       -> copy_over_string_while
+        #       -> copy_over_string_endwhile
+        #   -> check_higher_score_exist_false
         #   -> [epilogue]
 
 update_highscore__prologue:
@@ -797,7 +816,7 @@ update_highscore__body:
 check_higher_score_exist:
         lw      $t0, high_score                                 # $t0 = high_score.score
         bge     $t0, $a0, check_higher_score_exist_false        # if (high_score.score < score)
-        sw      $a0, scores($t0)                                #       high_score.score = score
+        sw      $a0, high_score($t0)                            #       high_score.score = score
         
         li      $t1, 0                                          #       int i = 0
 copy_over_string_while:
@@ -806,7 +825,7 @@ copy_over_string_while:
 
         add     $t3, $t0, 4                                     #               high_score.score -> high_score.name
         add     $t3, $t3, $t1                                   #               high_score.name -> high_score.name[i]
-        sb      $t2, scores($t3)                                #               high_score.name[i] = user_name[i]
+        sb      $t2, high_score($t3)                            #               high_score.name[i] = user_name[i]
 
         addi    $t1, $t1, 1                                     #               ++i
         j       copy_over_string_while                          # jump back to the top
@@ -814,7 +833,7 @@ copy_over_string_while:
 copy_over_string_endwhile:
         add     $t3, $t0, 4                                     #       high_score.score -> high_score.name
         add     $t3, $t3, $t1                                   #       high_score.name -> high_score.name[i]
-        sb      $zero, scores($t3)                              #       high_score.name[i] = '\0'
+        sb      $zero, high_score($t3)                          #       high_score.name[i] = '\0'
 
         li      $v0, TRUE                                       #       return TRUE
         j       update_highscore__epilogue
@@ -837,17 +856,21 @@ print_scores:
         # Arguments: void
         # Returns: void
         #
-        # Frame:    $ra, [...]
-        # Uses:     [...]
-        # Clobbers: [...]
+        # Frame:    $ra
+        # Uses:     $a0, $v0, $t0, $t1, $t2
+        # Clobbers: $a0, $v0
         #
         # Locals:
-        #   - [...]
+        #   - `int i`                    in $t0
+        #   - `int score[i]`             in $t1
+        #   - index within `scores`      in $t2
         #
         # Structure:
         #   print_scores
         #   -> [prologue]
-        #   -> body
+        #   -> print_scores__body
+        #   -> max_scores_for_loop
+        #   -> max_scores_for_loop_end
         #   -> [epilogue]
 
 print_scores__prologue:
@@ -884,11 +907,9 @@ max_scores_for_loop:
         bge     $t0, MAX_SCORES, max_scores_for_loop_end       # for (i < MAX_SCORES)
         
         mul     $t1, $t0, USER_SCORE_SIZE                      #        $t1 = score[i] 
-        
         lw      $t2, scores($t1)                               #        struct UserScore curr = scores[i];
-        beq     $t2, -1, max_scores_for_loop_end       #        if (curr.score == -1)
+        beq     $t2, -1, max_scores_for_loop_end               #        if (curr.score == -1)
                                                                #        break
-
         la      $a0, scores_line_msg                           #
         li      $v0, 4                                         #
         syscall                                                #        printf("------------------------------\n");
@@ -919,6 +940,7 @@ max_scores_for_loop:
         syscall                                                #        printf("\n");
 
         addi    $t0, $t0, 1                                    #        i++;
+
         j       max_scores_for_loop
 
 max_scores_for_loop_end:
