@@ -8,7 +8,7 @@ At any point, you can perform 2 actions:
 
 Once you have revealed all cells that do not contain a bomb, you win the game.
 
-## Test
+## Testing Example
     gcc -o minesweeper minesweeper.c
     echo -e "20\n2\n0\nname\n-1" > input
     cat input | ./minesweeper | tee c.out
