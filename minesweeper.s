@@ -14,10 +14,10 @@
 ########################################################################
 
 # Constant definitions.
-# MAX_BOMBS       = 1000
-# N_ROWS          = 10
-# N_COLS          = 10
-# N_CELLS         = N_ROWS * N_COLS
+MAX_BOMBS       = 1000
+N_ROWS          = 10
+N_COLS          = 10
+N_CELLS         = N_ROWS * N_COLS
 
 # DO NOT CHANGE THESE DEFINITIONS
 
